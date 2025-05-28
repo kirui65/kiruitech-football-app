@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Streaming & News</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212; /* Even darker background for contrast */
+            color: #e0e0e0; /* Lighter text for readability */
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #282828; /* Darker track */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4CAF50; /* Vibrant green thumb */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #66BB6A; /* Lighter green on hover */
+        }
+        /* Enhanced spinner for loading state */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #FFD700; /* Gold color */
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* Slightly darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #1e1e1e; /* Darker modal background */
+            padding: 2.5rem; /* Slightly more padding */
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(-30px) scale(0.95); /* Initial transform for animation */
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Bounce effect */
+            border: 1px solid #333; /* Subtle border */
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0) scale(1);
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: #FF6347; /* Tomato red close button */
+            border: none;
+            font-size: 1.6rem;
+            color: white;
+            cursor: pointer;
+            padding: 0.4rem 0.8rem; /* Adjusted padding */
+            border-radius: 50%;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .modal-close-button:hover {
+            background-color: #E5533D; /* Darker red on hover */
+            transform: rotate(90deg); /* Rotate on hover */
+        }
+
+        /* General Button Styling */
+        button {
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            border-radius: 0.75rem; /* Consistent rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            transform: translateY(-2px); /* Lift effect */
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Specific Button Colors */
+        .bg-blue-600 { background-color: #2196F3; } /* Brighter blue */
+        .hover\:bg-blue-700:hover { background-color: #1976D2; }
+        .bg-green-600 { background-color: #4CAF50; } /* Vibrant green */
+        .hover\:bg-green-700:hover { background-color: #388E3C; }
+        .bg-purple-600 { background-color: #9C27B0; } /* Rich purple */
+        .hover\:bg-purple-700:hover { background-color: #7B1FA2; }
+        .bg-orange-600 { background-color: #FF9800; } /* Bright orange */
+        .hover\:bg-orange-700:hover { background-color: #FB8C00; }
+        .bg-red-600 { background-color: #F44336; } /* Standard red */
+        .hover\:bg-red-700:hover { background-color: #D32F2F; }
+        .bg-gray-500 { background-color: #616161; } /* Darker gray for cancel */
+        .hover\:bg-gray-600:hover { background-color: #424242; }
+
+        /* Card/Item Hover Effects */
+        .bg-gray-700 { background-color: #282828; } /* Darker base for cards */
+        .hover\:bg-gray-600:hover { background-color: #3a3a3a; } /* Subtle lift on hover */
+        .bg-gray-700.rounded-lg {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .bg-gray-700.rounded-lg:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Featured Stream Border Animation */
+        .video-player-container.border-4 {
+            border-color: #FFD700; /* Gold border for active stream */
+            animation: pulseBorder 1.5s infinite alternate; /* Pulsing animation */
+        }
+        @keyframes pulseBorder {
+            0% { border-color: #FFD700; box-shadow: 0 0 10px #FFD700; }
+            100% { border-color: #FFC107; box-shadow: 0 0 20px #FFC107; }
+        }
+
+        /* Section backgrounds */
+        section, aside {
+            background-color: #1e1e1e; /* Darker section background */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+        }
+        header, footer {
+            background-color: #0d0d0d; /* Even darker header/footer */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="app-modal-overlay" class="modal-overlay">
+        <div id="app-modal-content" class="modal-content">
+            <button id="app-modal-close" class="modal-close-button">×</button>
+            <h3 id="modal-title" class="text-xl font-bold text-white mb-4"></h3>
+            <div id="modal-body" class="text-gray-300"></div>
+            <div id="modal-action-area" class="mt-4"></div>
+        </div>
+    </div>
+
+    <header class="bg-gray-800 p-4 shadow-lg">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-3xl font-bold text-white mb-4 md:mb-0">Kiruitech</h1>
+            <nav>
+                <ul class="flex space-x-6">
+                    <li><a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Home</a></li>
+                    <li><a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Football</a></li>
+                    <li><a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">News</a></li>
+                    <li><a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Settings</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <section class="lg:col-span-2 bg-gray-800 rounded-lg shadow-xl p-6">
+            <h2 class="text-2xl font-semibold text-white mb-4">Featured Stream</h2>
+            <div id="video-player-container" class="w-full bg-black rounded-lg overflow-hidden mb-4 aspect-video flex items-center justify-center">
+                <p id="player-message" class="text-gray-400 text-center p-4">Select a stream from the right to start watching!</p>
+                <iframe id="video-player" class="w-full h-full hidden" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <div id="stream-info" class="text-gray-300">
+                <h3 id="stream-title" class="text-xl font-bold"></h3>
+                <p id="stream-description" class="text-sm"></p>
+            </div>
+        </section>
+
+        <aside class="lg:col-span-1 bg-gray-800 rounded-lg shadow-xl p-6">
+            <div class="mb-6 p-3 bg-gray-700 rounded-lg text-sm text-gray-300">
+                <p class="font-semibold">Your Session ID:</p>
+                <p id="user-id-display" class="break-all text-gray-400 text-xs">Loading...</p>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-200 mb-3">Add New Match</h3>
+                <form id="add-match-form" class="space-y-3">
+                    <div>
+                        <label for="match-title" class="block text-gray-300 text-sm font-bold mb-1">Title</label>
+                        <input type="text" id="match-title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., Man Utd vs. Liverpool" required>
+                    </div>
+                    <div>
+                        <label for="match-description" class="block text-gray-300 text-sm font-bold mb-1">Description</label>
+                        <textarea id="match-description" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., Live from Old Trafford!" rows="2" required></textarea>
+                    </div>
+                    <div>
+                        <label for="match-thumbnail" class="block text-gray-300 text-sm font-bold mb-1">Thumbnail URL</label>
+                        <input type="text" id="match-thumbnail" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., https://placehold.co/300x150" required>
+                    </div>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full">
+                        Add Match
+                    </button>
+                    <p id="add-match-message" class="text-sm text-center mt-2"></p>
+                </form>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-200 mb-3">Submit News Article</h3>
+                <form id="add-news-form" class="space-y-3">
+                    <div>
+                        <label for="news-title" class="block text-gray-300 text-sm font-bold mb-1">Headline</label>
+                        <input type="text" id="news-title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., Transfer Rumors Heat Up" required>
+                    </div>
+                    <div>
+                        <label for="news-description" class="block text-gray-300 text-sm font-bold mb-1">Summary</label>
+                        <textarea id="news-description" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., Latest updates on player movements..." rows="2" required></textarea>
+                    </div>
+                    <div>
+                        <label for="news-thumbnail" class="block text-gray-300 text-sm font-bold mb-1">Thumbnail URL</label>
+                        <input type="text" id="news-thumbnail" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400" placeholder="e.g., https://placehold.co/300x150" required>
+                    </div>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full">
+                        Submit News
+                    </button>
+                    <p id="add-news-message" class="text-sm text-center mt-2"></p>
+                </form>
+            </div>
+
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-200 mb-3 flex justify-between items-center">
+                    Live Football Matches
+                    </h3>
+                <div id="football-matches" class="space-y-3">
+                    <div id="football-loading" class="flex items-center justify-center p-4">
+                        <div class="spinner mr-2"></div>
+                        <p class="text-gray-400">Loading matches...</p>
+                    </div>
+                    </div>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-200 mb-3 flex justify-between items-center">
+                    Football News Hub
+                    <button id="refresh-news" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-md transition-colors duration-200 flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004 12c0 2.21.896 4.21 2.342 5.658M18 19v-5h-.582m-15.356-2A8.001 8.001 0 0020 12c0-2.21-.896-4.21-2.342-5.658"></path></svg>
+                        <span>Refresh</span>
+                    </button>
+                </h3>
+                <div id="football-news" class="space-y-3">
+                    <div id="news-loading" class="flex items-center justify-center p-4 hidden">
+                        <div class="spinner mr-2"></div>
+                        <p class="text-gray-400">Loading news...</p>
+                    </div>
+                    </div>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-200 mb-3 flex justify-between items-center">
+                    Football Trivia Hub
+                </h3>
+                <div class="bg-gray-700 rounded-lg p-4 space-y-3">
+                    <button id="get-trivia-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full flex items-center justify-center space-x-2">
+                        <span class="text-xl">✨</span> <span>Get New Trivia</span>
+                    </button>
+                    <div id="trivia-loading" class="flex items-center justify-center p-4 hidden">
+                        <div class="spinner mr-2"></div>
+                        <p class="text-gray-400">Generating trivia...</p>
+                    </div>
+                    <p id="trivia-question" class="text-gray-200 text-lg font-semibold"></p>
+                    <button id="show-answer-button" class="bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full hidden">
+                        Show Answer
+                    </button>
+                    <p id="trivia-answer" class="text-gray-400 text-base hidden"></p>
+                </div>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <footer class="bg-gray-900 p-4 text-center text-gray-400 text-sm mt-8">
+        <div class="container mx-auto">
+            © 2025 Kiruitech. All rights reserved. For educational purposes only.
+        </div>
+    </footer>
+
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase instances
+        let app;
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Default to anonymous
+
+        // DOM Elements
+        const footballMatchesContainer = document.getElementById('football-matches');
+        const footballNewsContainer = document.getElementById('football-news');
+        const videoPlayer = document.getElementById('video-player');
+        const videoPlayerContainer = document.getElementById('video-player-container');
+        const playerMessage = document.getElementById('player-message');
+        const streamTitle = document.getElementById('stream-title');
+        const streamDescription = document.getElementById('stream-description');
+        const footballLoadingIndicator = document.getElementById('football-loading');
+        const newsLoadingIndicator = document.getElementById('news-loading');
+        const refreshNewsButton = document.getElementById('refresh-news');
+
+        // Re-added DOM elements for content submission
+        const userIdDisplay = document.getElementById('user-id-display');
+        const addMatchForm = document.getElementById('add-match-form');
+        const addMatchMessage = document.getElementById('add-match-message');
+        const addNewsForm = document.getElementById('add-news-form'); // New
+        const addNewsMessage = document.getElementById('add-news-message'); // New
+
+        // Modal Elements
+        const appModalOverlay = document.getElementById('app-modal-overlay');
+        const appModalCloseButton = document.getElementById('app-modal-close');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalActionArea = document.getElementById('modal-action-area');
+
+        // Trivia Elements
+        const getTriviaButton = document.getElementById('get-trivia-button');
+        const triviaLoadingIndicator = document.getElementById('trivia-loading');
+        const triviaQuestion = document.getElementById('trivia-question');
+        const showAnswerButton = document.getElementById('show-answer-button');
+        const triviaAnswer = document.getElementById('trivia-answer');
+
+
+        // --- Firebase Initialization and Authentication ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize Firebase App
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Authenticate user
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase authentication error:", error);
+                // Fallback to a random UUID if authentication fails completely
+                userId = crypto.randomUUID();
+                userIdDisplay.textContent = userId; // Display fallback ID
+                addMatchMessage.textContent = "Authentication failed. Cannot add matches.";
+                addMatchMessage.className = "text-red-400 text-sm text-center mt-2";
+                addNewsMessage.textContent = "Authentication failed. Cannot submit news."; // New
+                addNewsMessage.className = "text-red-400 text-sm text-center mt-2"; // New
+            }
+
+            // Listen for auth state changes and update userId
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    userIdDisplay.textContent = userId; // Display authenticated ID
+                    // Start listening for matches and news once authenticated
+                    setupRealtimeFootballMatchesListener();
+                    fetchFootballNews(); // Initial fetch for LLM-generated news
+                } else {
+                    // If somehow unauthenticated, use a random ID.
+                    userId = crypto.randomUUID();
+                    userIdDisplay.textContent = userId; // Display fallback ID
+                    addMatchMessage.textContent = "Not authenticated. Cannot add matches.";
+                    addMatchMessage.className = "text-red-400 text-sm text-center mt-2";
+                    addNewsMessage.textContent = "Not authenticated. Cannot submit news."; // New
+                    addNewsMessage.className = "text-red-400 text-sm text-center mt-2"; // New
+                    footballLoadingIndicator.classList.add('hidden');
+                    footballMatchesContainer.innerHTML = '<p class="text-gray-400 p-4">Please sign in to view matches.</p>';
+                    newsLoadingIndicator.classList.add('hidden');
+                    footballNewsContainer.innerHTML = '<p class="text-gray-400 p-4">Please sign in to view news.</p>';
+                }
+            });
+        });
+
+        // --- Modal Control Functions ---
+        function openModal(title, bodyHtml, actionButton = null) {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalActionArea.innerHTML = ''; // Clear previous actions
+            if (actionButton) {
+                modalActionArea.appendChild(actionButton);
+            }
+            appModalOverlay.classList.add('active');
+        }
+
+        function closeModal() {
+            appModalOverlay.classList.remove('active');
+            modalTitle.textContent = '';
+            modalBody.innerHTML = '';
+            modalActionArea.innerHTML = '';
+        }
+
+        appModalCloseButton.addEventListener('click', closeModal);
+        appModalOverlay.addEventListener('click', (e) => {
+            if (e.target === appModalOverlay) {
+                closeModal();
+            }
+        });
+
+
+        // --- Function to create a stream item element (reused for news, matches, and replays) ---
+        function createStreamItem(item) {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'bg-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-600 transition-colors duration-200 flex items-center space-x-3 relative';
+            itemDiv.setAttribute('data-id', item.id);
+            itemDiv.setAttribute('data-title', item.title);
+            itemDiv.setAttribute('data-description', item.description);
+
+            const thumbnailImg = document.createElement('img');
+            thumbnailImg.src = item.thumbnail || 'https://placehold.co/64x64/333333/FFFFFF?text=No+Img';
+            thumbnailImg.alt = item.title;
+            thumbnailImg.className = 'w-16 h-16 rounded-md object-cover';
+            thumbnailImg.onerror = function() { this.src = 'https://placehold.co/64x64/333333/FFFFFF?text=No+Img'; };
+
+            const textContentDiv = document.createElement('div');
+            textContentDiv.className = 'flex-grow';
+
+            const titleP = document.createElement('p');
+            titleP.className = 'font-semibold text-gray-100 text-lg';
+            titleP.textContent = item.title;
+
+            const descriptionP = document.createElement('p');
+            descriptionP.className = 'text-gray-400 text-sm';
+            descriptionP.textContent = item.description;
+
+            textContentDiv.appendChild(titleP);
+            textContentDiv.appendChild(descriptionP);
+            itemDiv.appendChild(thumbnailImg);
+            itemDiv.appendChild(textContentDiv);
+
+            // Conditional actions based on item type
+            if (item.streamUrl) { // This is a match item (from Firestore)
+                const urlToLoad = item.streamUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1';
+                itemDiv.addEventListener('click', () => {
+                    loadStream(urlToLoad, item.title, item.description);
+                });
+
+                // Add Match Prediction Button
+                const predictButton = document.createElement('button');
+                predictButton.className = 'bg-orange-600 hover:bg-orange-700 text-white text-xs px-2 py-1 rounded-md transition-colors duration-200 mt-2 flex items-center justify-center space-x-1';
+                predictButton.innerHTML = '<span class="text-lg">✨</span> <span>Predict Match</span>';
+                predictButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    predictMatch(item.title);
+                });
+                textContentDiv.appendChild(predictButton);
+
+                // Add Delete Match Button (only for Firestore-backed matches)
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white text-xs p-1 rounded-full transition-colors duration-200';
+                deleteButton.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+                deleteButton.title = 'Delete Match';
+                deleteButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    confirmAndDeleteMatch(item.id, item.title);
+                });
+                itemDiv.appendChild(deleteButton);
+
+
+            } else if (item.articleUrl) { // This is a news article (from LLM or user submission)
+                itemDiv.addEventListener('click', () => {
+                    openModal(item.title, `<p>${item.description}</p><p class="mt-4"><a href="${item.articleUrl}" target="_blank" class="text-blue-400 hover:underline">Read Full Article (Placeholder)</a></p>`);
+                });
+                // If it's a user-submitted news article, allow deletion
+                if (item.submittedBy) { // Assuming 'submittedBy' field exists for user-submitted news
+                     const deleteButton = document.createElement('button');
+                    deleteButton.className = 'absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white text-xs p-1 rounded-full transition-colors duration-200';
+                    deleteButton.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+                    deleteButton.title = 'Delete News Article';
+                    deleteButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        confirmAndDeleteNews(item.id, item.title);
+                    });
+                    itemDiv.appendChild(deleteButton);
+                }
+            }
+
+            return itemDiv;
+        }
+
+        // --- Function to load a stream into the player ---
+        function loadStream(url, title, description) {
+            videoPlayer.src = url;
+            videoPlayer.classList.remove('hidden');
+            playerMessage.classList.add('hidden');
+            streamTitle.textContent = title;
+            streamDescription.textContent = description;
+            videoPlayerContainer.classList.add('border-4', 'border-blue-500');
+        }
+
+        // --- Real-time Football Matches Listener (Firestore) ---
+        function setupRealtimeFootballMatchesListener() {
+            const footballMatchesColRef = collection(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/footballMatches`);
+
+            onSnapshot(footballMatchesColRef, (snapshot) => {
+                footballMatchesContainer.innerHTML = '';
+                footballLoadingIndicator.classList.add('hidden');
+
+                const matches = [];
+                snapshot.forEach(doc => {
+                    matches.push({ id: doc.id, ...doc.data() });
+                });
+
+                matches.sort((a, b) => (b.timestamp?.toDate() || 0) - (a.timestamp?.toDate() || 0));
+
+                if (matches.length > 0) {
+                    matches.forEach(match => {
+                        footballMatchesContainer.appendChild(createStreamItem(match));
+                    });
+                    if (!videoPlayer.src || videoPlayer.src === 'about:blank') {
+                        loadStream(matches[0].streamUrl, matches[0].title, matches[0].description);
+                    }
+                } else {
+                    footballMatchesContainer.innerHTML = '<p class="text-gray-400 p-4">No live matches found. Add one using the form above!</p>';
+                }
+            }, (error) => {
+                console.error("Error fetching real-time matches:", error);
+                footballLoadingIndicator.classList.add('hidden');
+                footballMatchesContainer.innerHTML = '<p class="text-red-400 p-4">Failed to load matches. Please check your connection or permissions.</p>';
+            });
+        }
+
+        // --- Add New Match Functionality (Re-added) ---
+        addMatchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!userId || userId === 'anonymous') {
+                addMatchMessage.textContent = "Please wait for authentication to complete.";
+                addMatchMessage.className = "text-yellow-400 text-sm text-center mt-2";
+                return;
+            }
+
+            const title = document.getElementById('match-title').value;
+            const description = document.getElementById('match-description').value;
+            const thumbnail = document.getElementById('match-thumbnail').value;
+            const streamUrl = `https://kiruitech.live/stream/${crypto.randomUUID().substring(0, 8)}/${encodeURIComponent(title.replace(/\s/g, '-').toLowerCase())}`;
+
+            const footballMatchesColRef = collection(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/footballMatches`);
+
+            try {
+                await addDoc(footballMatchesColRef, {
+                    title,
+                    description,
+                    thumbnail,
+                    streamUrl,
+                    timestamp: serverTimestamp(),
+                    submittedBy: userId // Track who submitted it
+                });
+                addMatchMessage.textContent = "Match added successfully!";
+                addMatchMessage.className = "text-green-400 text-sm text-center mt-2";
+                addMatchForm.reset();
+            } catch (error) {
+                console.error("Error adding match: ", error);
+                addMatchMessage.textContent = `Error adding match: ${error.message}`;
+                addMatchMessage.className = "text-red-400 text-sm text-center mt-2";
+            }
+        });
+
+        // --- Function to confirm and delete a match ---
+        async function confirmAndDeleteMatch(matchId, matchTitle) {
+            const confirmDeleteButton = document.createElement('button');
+            confirmDeleteButton.className = 'bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full';
+            confirmDeleteButton.textContent = 'Yes, Delete Match';
+
+            confirmDeleteButton.addEventListener('click', async () => {
+                closeModal();
+                try {
+                    const matchDocRef = doc(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/footballMatches`, matchId);
+                    await deleteDoc(matchDocRef);
+                } catch (error) {
+                    console.error("Error deleting document: ", error);
+                    openModal('Deletion Failed', `<p class="text-red-400">Failed to delete match: ${error.message}</p>`);
+                }
+            });
+
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full mt-2';
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', closeModal);
+
+            const actionButtonsContainer = document.createElement('div');
+            actionButtonsContainer.className = 'flex flex-col space-y-2';
+            actionButtonsContainer.appendChild(confirmDeleteButton);
+            actionButtonsContainer.appendChild(cancelButton);
+
+            openModal('Confirm Deletion', `<p>Are you sure you want to delete the match: <strong>${matchTitle}</strong>?</p>`, actionButtonsContainer);
+        }
+
+        // --- Add New News Article Functionality (New) ---
+        addNewsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!userId || userId === 'anonymous') {
+                addNewsMessage.textContent = "Please wait for authentication to complete.";
+                addNewsMessage.className = "text-yellow-400 text-sm text-center mt-2";
+                return;
+            }
+
+            const title = document.getElementById('news-title').value;
+            const description = document.getElementById('news-description').value;
+            const thumbnail = document.getElementById('news-thumbnail').value;
+            const articleUrl = `https://kiruitech.news/user-article/${crypto.randomUUID().substring(0, 8)}/${encodeURIComponent(title.replace(/\s/g, '-').toLowerCase())}`;
+
+            const userNewsColRef = collection(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/userNews`);
+
+            try {
+                await addDoc(userNewsColRef, {
+                    title,
+                    description,
+                    thumbnail,
+                    articleUrl,
+                    timestamp: serverTimestamp(),
+                    submittedBy: userId // Track who submitted it
+                });
+                addNewsMessage.textContent = "News article submitted successfully!";
+                addNewsMessage.className = "text-green-400 text-sm text-center mt-2";
+                addNewsForm.reset();
+            } catch (error) {
+                console.error("Error adding news article: ", error);
+                addNewsMessage.textContent = `Error submitting news: ${error.message}`;
+                addNewsMessage.className = "text-red-400 text-sm text-center mt-2";
+            }
+        });
+
+        // --- Function to confirm and delete a news article ---
+        async function confirmAndDeleteNews(newsId, newsTitle) {
+            const confirmDeleteButton = document.createElement('button');
+            confirmDeleteButton.className = 'bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full';
+            confirmDeleteButton.textContent = 'Yes, Delete Article';
+
+            confirmDeleteButton.addEventListener('click', async () => {
+                closeModal();
+                try {
+                    const newsDocRef = doc(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/userNews`, newsId);
+                    await deleteDoc(newsDocRef);
+                } catch (error) {
+                    console.error("Error deleting news document: ", error);
+                    openModal('Deletion Failed', `<p class="text-red-400">Failed to delete article: ${error.message}</p>`);
+                }
+            });
+
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 w-full mt-2';
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', closeModal);
+
+            const actionButtonsContainer = document.createElement('div');
+            actionButtonsContainer.className = 'flex flex-col space-y-2';
+            actionButtonsContainer.appendChild(confirmDeleteButton);
+            actionButtonsContainer.appendChild(cancelButton);
+
+            openModal('Confirm Deletion', `<p>Are you sure you want to delete the news article: <strong>${newsTitle}</strong>?</p>`, actionButtonsContainer);
+        }
+
+
+        // --- Function to fetch and display football news using Gemini API (and user-submitted news) ---
+        async function fetchFootballNews() {
+            footballNewsContainer.innerHTML = '';
+            newsLoadingIndicator.classList.remove('hidden');
+
+            const llmPrompt = `Generate a JSON array of 3-5 mock football news articles. Each article object should have:
+            - "id": a unique string identifier (e.g., "news_id_1")
+            - "title": a catchy news headline (e.g., "Mbappe to Real Madrid: The Saga Continues!")
+            - "description": a short summary of the news article (e.g., "Latest reports suggest a breakthrough in negotiations...")
+            - "thumbnail": a placeholder image URL (e.g., "https://placehold.co/300x150/000000/FFFFFF?text=News+Headline")
+            - "articleUrl": a placeholder URL for the full article (e.g., "https://kiruitech.news/article/mbappe-saga-update")
+            Ensure the thumbnail text matches the news title for realism.`;
+
+            let llmChatHistory = [];
+            llmChatHistory.push({ role: "user", parts: [{ text: llmPrompt }] });
+
+            const llmPayload = {
+                contents: llmChatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "id": { "type": "STRING" },
+                                "title": { "type": "STRING" },
+                                "description": { "type": "STRING" },
+                                "thumbnail": { "type": "STRING" },
+                                "articleUrl": { "type": "STRING" }
+                            },
+                            "propertyOrdering": ["id", "title", "description", "thumbnail", "articleUrl"]
+                        }
+                    }
+                }
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            let allNews = [];
+
+            // Fetch LLM-generated news
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(llmPayload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    const llmNews = JSON.parse(jsonString);
+                    allNews = allNews.concat(llmNews);
+                }
+            } catch (error) {
+                console.error('Error fetching LLM football news:', error);
+            }
+
+            // Fetch user-submitted news from Firestore
+            try {
+                const userNewsColRef = collection(db, `artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/public/data/userNews`);
+                const snapshot = await onSnapshot(userNewsColRef, (snapshot) => {
+                    let userSubmittedNews = [];
+                    snapshot.forEach(doc => {
+                        userSubmittedNews.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    // Combine and display all news
+                    const combinedNews = [...allNews, ...userSubmittedNews];
+                    // Sort by timestamp if available, otherwise keep original order
+                    combinedNews.sort((a, b) => (b.timestamp?.toDate() || 0) - (a.timestamp?.toDate() || 0));
+
+                    footballNewsContainer.innerHTML = ''; // Clear existing news
+                    if (combinedNews.length > 0) {
+                        combinedNews.forEach(newsItem => {
+                            footballNewsContainer.appendChild(createStreamItem(newsItem));
+                        });
+                    } else {
+                        footballNewsContainer.innerHTML = '<p class="text-gray-400 p-4">No news articles found.</p>';
+                    }
+                    newsLoadingIndicator.classList.add('hidden'); // Hide loading indicator after all news is processed
+                }, (error) => {
+                    console.error("Error fetching user-submitted news:", error);
+                    footballNewsContainer.innerHTML = '<p class="text-red-400 p-4">Failed to load news. Please try again.</p>';
+                    newsLoadingIndicator.classList.add('hidden');
+                });
+            } catch (error) {
+                console.error('Error setting up user news listener:', error);
+                footballNewsContainer.innerHTML = '<p class="text-red-400 p-4">Failed to load news. Please try again.</p>';
+                newsLoadingIndicator.classList.add('hidden');
+            }
+        }
+
+
+        // --- LLM-Powered Feature: Match Prediction ---
+        async function predictMatch(matchTitle) {
+            openModal('Match Prediction & Analysis', '<div class="flex items-center justify-center p-4"><div class="spinner mr-2"></div><p class="text-gray-400">Generating prediction...</p></div>');
+
+            const prompt = `Provide a brief football match prediction and analysis for the match: "${matchTitle}". Focus on key players, recent form, head-to-head stats, and potential outcomes. Keep it concise, around 100-150 words.`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const predictionText = result.candidates[0].content.parts[0].text;
+                    modalBody.innerHTML = `<p>${predictionText}</p>`;
+                } else {
+                    modalBody.innerHTML = '<p class="text-red-400">Could not generate prediction. Invalid response.</p>';
+                }
+            } catch (error) {
+                console.error('Error generating match prediction:', error);
+                modalBody.innerHTML = `<p class="text-red-400">Failed to generate prediction: ${error.message}</p>`;
+            }
+        }
+
+        // --- LLM-Powered Feature: Football Trivia ---
+        async function getFootballTrivia() {
+            triviaQuestion.textContent = '';
+            triviaAnswer.textContent = '';
+            showAnswerButton.classList.add('hidden');
+            triviaLoadingIndicator.classList.remove('hidden');
+
+            const prompt = `Generate a challenging football trivia question and its answer. Provide the output in JSON format with two keys: "question" (string) and "answer" (string). Example: {"question": "Who won the FIFA World Cup in 2018?", "answer": "France"}`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "question": { "type": "STRING" },
+                            "answer": { "type": "STRING" }
+                        },
+                        "propertyOrdering": ["question", "answer"]
+                    }
+                }
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    const trivia = JSON.parse(jsonString);
+
+                    triviaQuestion.textContent = trivia.question;
+                    triviaAnswer.textContent = trivia.answer;
+                    showAnswerButton.classList.remove('hidden');
+                } else {
+                    triviaQuestion.textContent = 'Could not generate trivia. Invalid response.';
+                }
+            } catch (error) {
+                console.error('Error generating football trivia:', error);
+                triviaQuestion.textContent = `Failed to generate trivia: ${error.message}`;
+            } finally {
+                triviaLoadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // --- Event Listeners ---
+        refreshNewsButton.addEventListener('click', fetchFootballNews);
+        getTriviaButton.addEventListener('click', getFootballTrivia);
+        showAnswerButton.addEventListener('click', () => {
+            triviaAnswer.classList.toggle('hidden');
+            showAnswerButton.textContent = triviaAnswer.classList.contains('hidden') ? 'Show Answer' : 'Hide Answer';
+        });
+
+        // Initial fetch for trivia when the page loads
+        getFootballTrivia();
+    </script>
+</body>
+</html>
